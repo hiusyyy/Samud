@@ -184,6 +184,7 @@ details.card[open]>summary{margin-bottom:12px}
 </head>
 <body>
 
+
 <header class="top">
   <div class="wrap">
     <div class="dateline"><h1 id="today"></h1><span id="status" aria-live="polite"></span></div>
@@ -447,6 +448,7 @@ details.card[open]>summary{margin-bottom:12px}
   <div class="card backup" id="backup">
     <h2>สำรองข้อมูล</h2>
     <p class="muted"><strong>สำคัญ:</strong> ข้อมูลเก็บอยู่ในเบราว์เซอร์หรือบัญชีนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ ใช้โหมดส่วนตัว เปลี่ยนเครื่อง หรือเปลี่ยนแผนการใช้งาน ข้อมูลอาจหายได้ ควรส่งออกไฟล์สำรองเป็นประจำ (แนะนำทุกสัปดาห์) และเก็บไฟล์ไว้ในอีเมลหรือ iCloud นำกลับเข้ามาได้ทุกเมื่อ</p>
+    <p class="muted" id="bk-store" style="font-size:14px"></p>
     <p class="muted" id="bk-last" style="font-size:14px"></p>
     <div class="btnrow">
       <button class="btn" id="b-exp" type="button">ส่งออกไฟล์สำรอง</button>
@@ -581,7 +583,20 @@ function norm(s){
   return o;
 }
 function readLocal(){try{var r=localStorage.getItem(KEY);return r?norm(JSON.parse(r)):null}catch(e){return null}}
-function writeLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+/* Second copy in IndexedDB: if the browser clears localStorage but not IndexedDB (or the reverse), data survives. */
+function idbOpen(){return new Promise(function(res,rej){
+  try{var q=indexedDB.open('sumud-db',1);q.onupgradeneeded=function(){q.result.createObjectStore('kv')};q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}catch(e){rej(e)}
+})}
+function idbPut(k,v){return idbOpen().then(function(d){return new Promise(function(res,rej){
+  var tx=d.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);
+  tx.oncomplete=function(){d.close();res()};tx.onerror=tx.onabort=function(){d.close();rej()};
+})})}
+function idbGet(k){return idbOpen().then(function(d){return new Promise(function(res,rej){
+  var q=d.transaction('kv','readonly').objectStore('kv').get(k);
+  q.onsuccess=function(){d.close();res(q.result)};q.onerror=function(){d.close();rej()};
+})})}
+function mirror(){try{idbPut('state',{at:Date.now(),json:JSON.stringify(S)}).catch(function(){})}catch(e){}}
+function writeLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){} mirror()}
 /* The account copy is split into four documents so none of them outgrows the size limit. */
 function split(x){
   return {
@@ -618,7 +633,9 @@ function shortLab(r,p){
 
 var docs=null, dl=null, timer=null, writing=false, pending=null, lastWritten={};
 function setStatus(t){$('#status').textContent=t}
+var dirty=false;
 function save(){
+  dirty=true;
   writeLocal();
   clearTimeout(timer);
   setStatus(docs?'กำลังบันทึก…':'บันทึกในเบราว์เซอร์นี้');
@@ -954,7 +971,27 @@ function beep(){
     setTimeout(function(){ac.close()},700);
   }catch(e){}
 }
-function setMode(m){T.mode=m;T.run=false;clearInterval(T.iv);lock(false);T.left=modeMs();drawTimer()}
+/* Timer state is kept so closing the page or Safari does not reset a running timer. */
+var TK='sumud-timer';
+function saveTimer(){
+  try{localStorage.setItem(TK,JSON.stringify({mode:T.mode,run:T.run,end:T.end,left:T.run?T.end-Date.now():T.left,
+    focus:$('#st-focus').value,brk:$('#st-break').value,course:$('#st-course').value}))}catch(e){}
+}
+function restoreTimer(){
+  var r=null; try{r=JSON.parse(localStorage.getItem(TK)||'null')}catch(e){}
+  if(!r||typeof r!=='object')return;
+  var f=Number(r.focus), b=Number(r.brk);
+  if(f>=1&&f<=240)$('#st-focus').value=String(f);
+  if(b>=1&&b<=120)$('#st-break').value=String(b);
+  if(r.course&&Array.prototype.some.call($('#st-course').options,function(o){return o.value===r.course}))$('#st-course').value=r.course;
+  T.mode=r.mode==='break'?'break':'focus';
+  var now=Date.now(), end=Number(r.end)||0;
+  if(r.run&&end>now){T.end=end;T.left=end-now;T.run=true;T.iv=setInterval(tick,250);lock(true);$('#st-msg').textContent='ตัวจับเวลายังเดินต่อจากครั้งก่อน'}
+  else if(r.run&&now-end<6*3600000){T.end=end;finishPhase()}
+  else{T.left=Math.min(modeMs(),Math.max(0,Number(r.left)||modeMs()));if(!r.run&&T.left<modeMs())$('#st-msg').textContent='ตัวจับเวลาที่หยุดไว้ยังอยู่'}
+  drawTimer();
+}
+function setMode(m){T.mode=m;T.run=false;clearInterval(T.iv);lock(false);T.left=modeMs();drawTimer();saveTimer()}
 function logStudy(mins){S.study.unshift({id:uid(),date:today(),course:$('#st-course').value,min:mins});commit()}
 function finishPhase(){
   clearInterval(T.iv);T.run=false;
@@ -972,7 +1009,7 @@ $('#st-go').addEventListener('click',function(){
   if(T.run){T.left=T.end-Date.now();T.run=false;clearInterval(T.iv);lock(false)}
   else{T.end=Date.now()+T.left;T.run=true;T.iv=setInterval(tick,250);lock(true)}
   $('#st-msg').textContent='';
-  drawTimer();
+  drawTimer(); saveTimer();
 });
 $('#st-stop').addEventListener('click',function(){
   if(T.mode!=='focus'){setMode('focus');$('#st-msg').textContent='';return}
@@ -983,8 +1020,9 @@ $('#st-stop').addEventListener('click',function(){
 });
 $('#st-reset').addEventListener('click',function(){setMode(T.mode);$('#st-msg').textContent=''});
 ['#st-focus','#st-break'].forEach(function(s){
-  $(s).addEventListener('change',function(){if(!T.run){T.left=modeMs();drawTimer()}});
+  $(s).addEventListener('change',function(){if(!T.run){T.left=modeMs();drawTimer()}saveTimer()});
 });
+$('#st-course').addEventListener('change',saveTimer);
 
 /* ---------- render: trades ---------- */
 function plOf(t){return (t.exit-t.entry)*t.qty*(t.side==='short'?-1:1)}
@@ -1065,12 +1103,17 @@ function renderNotify(){
   $('#n-pct').value=String(N.pct); $('#n-min').value=String(N.min);
 }
 /* Backup reminder: shown once there is real data and no backup in the last 7 days. */
-var BK_KEY='sumud-backup-at';
+var BK_KEY='sumud-backup-at', PERSIST=null;
+function askPersist(){
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().then(function(ok){PERSIST=!!ok;renderBackupWarn()}).catch(function(){})}catch(e){}
+}
 function getBackup(){try{return localStorage.getItem(BK_KEY)}catch(e){return null}}
 function setBackup(){try{localStorage.setItem(BK_KEY,today())}catch(e){}}
 function renderBackupWarn(){
   var hasReal=S.expenses.concat(S.income,S.recurring,S.tasks,S.classes,S.exams,S.goals,S.study,S.trades).some(function(x){return !x.demo});
   var last=getBackup(), days=last&&/^\d{4}-\d{2}-\d{2}$/.test(last)?-daysTo(last):null;
+  $('#bk-store').textContent=PERSIST===true?'เบราว์เซอร์อนุญาตให้เก็บข้อมูลถาวรแล้ว และมีสำเนาไว้ 2 ที่ในเครื่องนี้'
+    :'ข้อมูลเก็บไว้ 2 ที่ในเครื่องนี้ (เผื่อเบราว์เซอร์ล้างที่ใดที่หนึ่ง) แต่ถ้าล้างข้อมูลเว็บไซต์หมดก็หายได้ จึงควรสำรองเป็นไฟล์';
   $('#bk-last').textContent=days==null?'ยังไม่เคยสำรองข้อมูลจากเครื่องนี้':'สำรองล่าสุด '+parse(last).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})+(days>0?' ('+days+' วันที่แล้ว)':' (วันนี้)');
   var show=hasReal&&(days==null||days>=7);
   $('#bk-warn').hidden=!show;
@@ -1308,10 +1351,27 @@ setTab(location.hash.slice(1));
 var recChanged=applyRecurring();
 renderAll();
 drawTimer();
+restoreTimer();
 if(recChanged&&!fresh)writeLocal();
+else if(!fresh)mirror();
 setStatus('บันทึกในเบราว์เซอร์นี้');
+askPersist();
+document.addEventListener('click',function once(){askPersist();document.removeEventListener('click',once)});
+/* localStorage was emptied but the IndexedDB copy is still there: bring the data back. */
+if(fresh){
+  idbGet('state').then(function(rec){
+    if(!rec||!rec.json||docs||dirty)return;
+    var restored=norm(JSON.parse(rec.json));
+    S=restored; try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+    applyRecurring(); renderAll(); setStatus('กู้ข้อมูลจากสำเนาสำรองในเครื่องแล้ว');
+  }).catch(function(){});
+}
 setInterval(renderAlerts,60000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden){renderAlerts();if(T.run)tick()}});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){saveTimer();flush()}
+  else{renderAlerts();if(T.run)tick()}
+});
+window.addEventListener('pagehide',function(){saveTimer();flush()});
 
 (async function(){
   try{
@@ -1343,5 +1403,6 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden){ren
 })();
 })();
 </script>
+
 </body>
 </html>
