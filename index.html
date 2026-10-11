@@ -6,36 +6,23 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="สมุดรายวัน">
-<meta name="theme-color" content="#C8157A">
+<meta name="theme-color" content="#1F1E1D">
 <title>สมุดรายวัน</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Prompt:wght@500;600&display=swap">
 <style>
 /* Layout: one 680px column. Sticky header holds the date and six tabs (3 x 2 on phones).
    Cards only for summaries, charts and entry forms; lists sit open on the page ground. */
 :root{
-  --bg:#F5F3F4; --surface:#FFFFFF; --surface-2:#ECE8EA; --fg:#1E181C; --muted:#6B6168; --line:#E2DCDF;
-  --accent:#C8157A; --accent-ink:#FFFFFF; --accent-soft:#FBE4F0;
-  --good:#1B7F4B; --warn:#B45309; --bad:#C0262D;
-  --c1:#E0752D; --c2:#2B7BB9; --c3:#7A5BC7; --c4:#C79A00; --c5:#2E9E8F; --c6:#5C6B7A; --c7:#8A7F86;
+  /* Always-dark theme: warm charcoal ground, Claude-orange accent, no pure white or pure black. */
+  --bg:#1F1E1D; --surface:#2A2927; --surface-2:#353330; --fg:#EDEAE2; --muted:#A9A498; --line:#403D39;
+  --accent:#D97757; --accent-ink:#1F1A17; --accent-soft:#3A2B24;
+  --good:#6FCF97; --warn:#E9A24B; --bad:#FF8A80;
+  --c1:#E58B5E; --c2:#6BAAE0; --c3:#A58BEA; --c4:#E2BC3A; --c5:#5CC7B8; --c6:#8E9DAD; --c7:#A9A498;
   --font-display:'Prompt','IBM Plex Sans Thai',system-ui,sans-serif;
   --font-body:'IBM Plex Sans Thai','Sarabun',system-ui,sans-serif;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#171316; --surface:#211B20; --surface-2:#2B242A; --fg:#F3EDF0; --muted:#A89DA5; --line:#382F36;
-    --accent:#F063AE; --accent-ink:#1A0A13; --accent-soft:#3A1B2D;
-    --good:#5BD08C; --warn:#E9A24B; --bad:#FF7A7F;
-    --c1:#F29255; --c2:#5AA6E0; --c3:#A58BEA; --c4:#E2BC3A; --c5:#5CC7B8; --c6:#8E9DAD; --c7:#A89DA5;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#171316; --surface:#211B20; --surface-2:#2B242A; --fg:#F3EDF0; --muted:#A89DA5; --line:#382F36;
-  --accent:#F063AE; --accent-ink:#1A0A13; --accent-soft:#3A1B2D;
-  --good:#5BD08C; --warn:#E9A24B; --bad:#FF7A7F;
-  --c1:#F29255; --c2:#5AA6E0; --c3:#A58BEA; --c4:#E2BC3A; --c5:#5CC7B8; --c6:#8E9DAD; --c7:#A89DA5;
   color-scheme:dark;
 }
+html{background:var(--bg)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--fg);font:400 15px/1.6 var(--font-body);margin:0;padding:0 0 56px}
