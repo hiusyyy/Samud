@@ -167,6 +167,27 @@ details.card[open]>summary{margin-bottom:12px}
 .bar-row .bn span:first-child{min-width:0;overflow-wrap:anywhere}
 
 @media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+
+/* PDF report: hidden on screen; when printing, only the report is shown, on white paper. */
+#report{display:none}
+.rp{font:400 12pt/1.5 var(--font-body);color:#1a1a1a}
+.rp h1{font:600 20pt/1.3 var(--font-display);margin:0 0 2pt;color:#1a1a1a}
+.rp .sub{color:#666;font-size:10pt;margin:0 0 14pt}
+.rp h2{font:600 13pt/1.3 var(--font-display);margin:16pt 0 6pt;padding-bottom:3pt;border-bottom:2px solid #D97757;color:#1a1a1a;break-after:avoid}
+.rp table{width:100%;border-collapse:collapse;font-size:11pt}
+.rp th{text-align:left;font-weight:500;color:#666;font-size:10pt;border-bottom:1px solid #bbb;padding:3pt 4pt}
+.rp td{padding:3pt 4pt;border-bottom:1px solid #e3e3e3;vertical-align:top}
+.rp tr{break-inside:avoid}
+.rp .r{text-align:right;white-space:nowrap}
+.rp .tot td{font-weight:600;border-top:1.5px solid #888;border-bottom:0}
+.rp .neg{color:#B3261E}.rp .pos{color:#1B7F4B}
+.rp .foot{margin-top:18pt;color:#888;font-size:9pt}
+@media print{
+  @page{margin:14mm}
+  html,body{background:#fff!important;color:#1a1a1a!important;padding:0!important}
+  body>*:not(#report){display:none!important}
+  #report{display:block!important}
+}
 </style>
 </head>
 <body>
@@ -211,7 +232,7 @@ details.card[open]>summary{margin-bottom:12px}
       <h2 id="m-label"></h2>
       <button class="iconbtn" data-act="next-m" aria-label="รอบถัดไป" type="button">›</button>
     </div>
-    <div><button class="btn ghost" id="m-now" data-act="now-m" type="button" hidden>กลับรอบปัจจุบัน</button></div>
+    <div class="btnrow"><button class="btn ghost" id="m-now" data-act="now-m" type="button" hidden>กลับรอบปัจจุบัน</button><button class="btn ghost" id="m-pdf" data-act="pdf-month" type="button">ส่งออก PDF</button></div>
 
     <div class="card sum">
       <div><div class="lbl">ใช้ไปในรอบนี้</div><div class="big" id="sp-spent">฿0</div></div>
@@ -432,6 +453,24 @@ details.card[open]>summary{margin-bottom:12px}
     </div>
   </details>
 
+  <div class="card backup" id="sync-card">
+    <h2>ซิงก์ข้อมูลขึ้นคลาวด์</h2>
+    <p class="muted" id="sy-text" style="font-size:14px"></p>
+    <div id="sy-conf" class="banner" hidden>
+      <span id="sy-conf-text"></span>
+      <span class="btnrow">
+        <button class="btn" type="button" data-act="sy-merge">รวมข้อมูลทั้งสองฝั่ง</button>
+        <button class="btn ghost" type="button" data-act="sy-cloud">ใช้ข้อมูลจากคลาวด์</button>
+        <button class="btn ghost" type="button" data-act="sy-local">ใช้ข้อมูลเครื่องนี้</button>
+      </span>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="sy-in" type="button" disabled>เข้าสู่ระบบด้วย Google</button>
+      <button class="btn ghost" id="sy-out" type="button" hidden>ออกจากระบบ</button>
+    </div>
+    <p class="note">ข้อมูลยังเก็บในเครื่องนี้เสมอ และอ่านได้เฉพาะบัญชี Google ของคุณ ควรส่งออกไฟล์สำรองเป็นครั้งคราวด้วย</p>
+  </div>
+
   <div class="card backup" id="backup">
     <h2>สำรองข้อมูล</h2>
     <p class="muted"><strong>สำคัญ:</strong> ข้อมูลเก็บอยู่ในเบราว์เซอร์หรือบัญชีนี้เท่านั้น ถ้าล้างข้อมูลเว็บไซต์ ใช้โหมดส่วนตัว เปลี่ยนเครื่อง หรือเปลี่ยนแผนการใช้งาน ข้อมูลอาจหายได้ ควรส่งออกไฟล์สำรองเป็นประจำ (แนะนำทุกสัปดาห์) และเก็บไฟล์ไว้ในอีเมลหรือ iCloud นำกลับเข้ามาได้ทุกเมื่อ</p>
@@ -449,6 +488,7 @@ details.card[open]>summary{margin-bottom:12px}
   </div>
 </main>
 
+<div id="report" aria-hidden="true"></div>
 <script>
 (function(){
 'use strict';
@@ -582,7 +622,10 @@ function idbGet(k){return idbOpen().then(function(d){return new Promise(function
   var q=d.transaction('kv','readonly').objectStore('kv').get(k);
   q.onsuccess=function(){d.close();res(q.result)};q.onerror=function(){d.close();rej()};
 })})}
-function mirror(){try{idbPut('state',{at:Date.now(),json:JSON.stringify(S)}).catch(function(){})}catch(e){}}
+var SY_AT='sumud-local-at';
+function lsNum(k){try{return Number(localStorage.getItem(k))||0}catch(e){return 0}}
+function lsPut(k,v){try{localStorage.setItem(k,String(v))}catch(e){}}
+function mirror(){try{idbPut('state',{at:Date.now(),lat:lsNum(SY_AT),json:JSON.stringify(S)}).catch(function(){})}catch(e){}}
 function writeLocal(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){} mirror()}
 /* The account copy is split into four documents so none of them outgrows the size limit. */
 function split(x){
@@ -623,9 +666,11 @@ function setStatus(t){$('#status').textContent=t}
 var dirty=false;
 function save(){
   dirty=true;
+  lsPut(SY_AT,Date.now());
   writeLocal();
   clearTimeout(timer);
-  setStatus(docs?'กำลังบันทึก…':'บันทึกในเบราว์เซอร์นี้');
+  setStatus(docs?'กำลังบันทึก…':(SY.user?'บันทึกในเครื่องแล้ว · กำลังซิงก์…':'บันทึกในเบราว์เซอร์นี้'));
+  syQueue();
   timer=setTimeout(flush,600);
 }
 function flush(){
@@ -673,6 +718,8 @@ function renderSpend(){
   var inMonth=function(x){return x.date>=r.s&&x.date<=r.e};
   $('#m-label').textContent=lab(r,P);
   $('#m-now').hidden=(r.s===rng(new Date(),P).s);
+  $('#m-pdf').textContent='ส่งออก PDF · '+viewDate.toLocaleDateString('th-TH',{month:'short',year:'numeric'});
+  $('#m-pdf').hidden=!!(window.claude&&window.claude.use);
   $('#bud-lbl').textContent=BL[P];
   document.querySelector('input[name="period"][value="'+P+'"]').checked=true;
   var exps=S.expenses.filter(inMonth), incs=S.income.filter(inMonth);
@@ -1151,6 +1198,7 @@ document.addEventListener('click',function(ev){
     case 'next-m':
       var r1=rng(viewDate,S.period); viewDate=new Date(r1.ed.getFullYear(),r1.ed.getMonth(),r1.ed.getDate()+1); renderSpend(); return;
     case 'now-m': viewDate=new Date(); renderSpend(); return;
+    case 'pdf-month': printMonth(); return;
     case 'cal-prev': calMonth(new Date(calView.getFullYear(),calView.getMonth()-1,1)); return;
     case 'cal-next': calMonth(new Date(calView.getFullYear(),calView.getMonth()+1,1)); return;
     case 'cal-now': calMonth(new Date()); return;
@@ -1181,6 +1229,9 @@ document.addEventListener('click',function(ev){
       if(!pending)return;
       S=pending; pending=null; $('#imp-box').hidden=true; applyRecurring(); msg('นำเข้าข้อมูลแล้ว'); break;
     case 'bk-now': $('#b-exp').click(); return;
+    case 'sy-cloud': syResolve('cloud'); return;
+    case 'sy-local': syResolve('local'); return;
+    case 'sy-merge': syResolve('merge'); return;
     case 'imp-no': pending=null; $('#imp-box').hidden=true; msg(''); return;
     default: return;
   }
@@ -1332,6 +1383,203 @@ $('#b-file').addEventListener('change',function(ev){
   r.readAsText(f);
 });
 
+/* ---------- PDF report for one month (uses the browser's print sheet: choose "Save as PDF") ---------- */
+function monthReport(y,m){
+  var s=ymd(new Date(y,m,1)), e=ymd(new Date(y,m+1,0)), inM=function(d){return d>=s&&d<=e};
+  var mlabel=new Date(y,m,1).toLocaleDateString('th-TH',{month:'long',year:'numeric'});
+  var ds=function(d){return parse(d).toLocaleDateString('th-TH',{day:'numeric',month:'short'})};
+  var sgn=function(n){return (n<0?'−':'+')+baht(Math.abs(n))};
+  var exps=S.expenses.filter(function(x){return inM(x.date)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
+  var incs=S.income.filter(function(x){return inM(x.date)}).sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
+  var spent=0,invested=0,earned=0,by={};
+  exps.forEach(function(x){if(x.cat==='invest')invested+=x.amt;else{spent+=x.amt;by[x.cat]=(by[x.cat]||0)+x.amt}});
+  incs.forEach(function(x){earned+=x.amt});
+  var net=earned-spent-invested, bud=S.budgets.month||0;
+  var h='<div class="rp"><h1>สมุดรายวัน · สรุปเดือน '+esc(mlabel)+'</h1><p class="sub">สร้างเมื่อ '+esc(new Date().toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'}))+'</p>';
+
+  h+='<h2>สรุปการเงิน</h2><table><tbody>'
+    +'<tr><td>รายรับ</td><td class="r pos">+'+baht(earned)+'</td></tr>'
+    +'<tr><td>รายจ่าย (ไม่รวมลงทุน)</td><td class="r">'+baht(spent)+'</td></tr>'
+    +'<tr><td>โอนเข้าพอร์ตลงทุน</td><td class="r">'+baht(invested)+'</td></tr>'
+    +'<tr class="tot"><td>คงเหลือ (รายรับ − รายจ่าย − ลงทุน)</td><td class="r '+(net<0?'neg':'pos')+'">'+sgn(net)+'</td></tr>'
+    +(bud>0?'<tr><td>งบต่อเดือน '+baht(bud)+'</td><td class="r '+(spent>bud?'neg':'pos')+'">'+(spent<=bud?'ใช้ไป '+Math.round(spent/bud*100)+'% · เหลือ '+baht(bud-spent):'เกินงบ '+baht(spent-bud))+'</td></tr>':'')
+    +'</tbody></table>';
+
+  var cats=CATS.filter(function(c){return c.id!=='invest'&&by[c.id]}).sort(function(a,b){return by[b.id]-by[a.id]});
+  if(cats.length){
+    h+='<h2>รายจ่ายตามหมวด</h2><table><thead><tr><th>หมวด</th><th class="r">จำนวน</th><th class="r">สัดส่วน</th></tr></thead><tbody>'
+      +cats.map(function(c){return '<tr><td>'+esc(c.name)+'</td><td class="r">'+baht(by[c.id])+'</td><td class="r">'+Math.round(by[c.id]/spent*100)+'%</td></tr>'}).join('')
+      +'<tr class="tot"><td>รวม</td><td class="r">'+baht(spent)+'</td><td class="r">100%</td></tr></tbody></table>';
+  }
+  if(incs.length){
+    h+='<h2>รายรับ</h2><table><thead><tr><th>วันที่</th><th>รายการ</th><th class="r">จำนวน</th></tr></thead><tbody>'
+      +incs.map(function(x){return '<tr><td>'+esc(ds(x.date))+'</td><td>'+esc(x.note||'รายรับ')+(x.demo?' (ตัวอย่าง)':'')+'</td><td class="r pos">+'+baht(x.amt)+'</td></tr>'}).join('')+'</tbody></table>';
+  }
+  if(exps.length){
+    h+='<h2>รายจ่าย</h2><table><thead><tr><th>วันที่</th><th>หมวด</th><th>รายการ</th><th class="r">จำนวน</th></tr></thead><tbody>'
+      +exps.map(function(x){var c=CAT(x.cat);return '<tr><td>'+esc(ds(x.date))+'</td><td>'+esc(c.name)+'</td><td>'+esc(x.note||'')+(x.demo?' (ตัวอย่าง)':'')+'</td><td class="r">'+baht(x.amt)+'</td></tr>'}).join('')+'</tbody></table>';
+  }
+
+  var st=S.study.filter(function(x){return inM(x.date)});
+  if(st.length){
+    var bc={},tm=0; st.forEach(function(x){var k=x.course||'ทั่วไป';bc[k]=(bc[k]||0)+x.min;tm+=x.min});
+    h+='<h2>เวลาอ่านหนังสือ</h2><table><thead><tr><th>วิชา</th><th class="r">เวลา</th></tr></thead><tbody>'
+      +Object.keys(bc).sort(function(a,b){return bc[b]-bc[a]}).map(function(k){return '<tr><td>'+esc(k)+'</td><td class="r">'+fmtMin(bc[k])+'</td></tr>'}).join('')
+      +'<tr class="tot"><td>รวม ('+new Set(st.map(function(x){return x.date})).size+' วัน)</td><td class="r">'+fmtMin(tm)+'</td></tr></tbody></table>';
+  }
+
+  var tr=S.trades.filter(function(t){return t.exit!=null&&inM(t.exitDate)}).sort(function(a,b){return a.exitDate<b.exitDate?-1:a.exitDate>b.exitDate?1:0});
+  if(tr.length){
+    var tp=0,w=0; tr.forEach(function(t){var p=plOf(t);tp+=p;if(p>0)w++});
+    var usd=function(n){return (n<0?'−':'+')+'$'+px(Math.abs(Math.round(n*100)/100))};
+    h+='<h2>เทรดที่ปิดในเดือนนี้</h2><table><thead><tr><th>ออก</th><th>หุ้น</th><th>ทิศทาง</th><th class="r">จำนวน</th><th class="r">เข้า → ออก</th><th class="r">กำไร/ขาดทุน</th></tr></thead><tbody>'
+      +tr.map(function(t){var p=plOf(t);return '<tr><td>'+esc(ds(t.exitDate))+'</td><td>'+esc(t.symbol)+'</td><td>'+(t.side==='short'?'ชอร์ต':'ซื้อ')+'</td><td class="r">'+px(t.qty)+'</td><td class="r">$'+px(t.entry)+' → $'+px(t.exit)+'</td><td class="r '+(p<0?'neg':'pos')+'">'+usd(p)+'</td></tr>'}).join('')
+      +'<tr class="tot"><td colspan="5">รวม ชนะ '+w+' จาก '+tr.length+' ไม้</td><td class="r '+(tp<0?'neg':'pos')+'">'+usd(tp)+'</td></tr></tbody></table>'
+      +'<p class="sub" style="margin-top:4pt">เป็นสมุดจดของตัวเอง ไม่รวมค่าธรรมเนียมและภาษี</p>';
+  }
+  if(!exps.length&&!incs.length&&!st.length&&!tr.length)h+='<p>ไม่มีรายการในเดือนนี้</p>';
+  h+='<p class="foot">สร้างจากแอปสมุดรายวัน · ข้อมูลเก็บในอุปกรณ์ของผู้ใช้</p></div>';
+  return {html:h,title:'สมุดรายวัน-'+(y+543)+'-'+pad(m+1)};
+}
+function printMonth(){
+  var rep=monthReport(viewDate.getFullYear(),viewDate.getMonth());
+  $('#report').innerHTML=rep.html;
+  var old=document.title; document.title=rep.title;
+  var done=function(){document.title=old;$('#report').innerHTML='';window.removeEventListener('afterprint',done)};
+  window.addEventListener('afterprint',done);
+  setTimeout(function(){try{window.print()}catch(e){done()}},50);
+}
+
+/* ---------- cloud sync: Google sign-in + one Firestore document per user (users/<uid>) ---------- */
+var FB_CFG={apiKey:"AIzaSyBBsA8WoaXC-yvvWyLT91aRV5fFDUOqeIQ",authDomain:"samud-raiwan.firebaseapp.com",projectId:"samud-raiwan",storageBucket:"samud-raiwan.firebasestorage.app",messagingSenderId:"37666646555",appId:"1:37666646555:web:874209fcb787c29f7326be"};
+var FB_BASE='https://www.gstatic.com/firebasejs/10.14.1/';
+var SY={m:null,auth:null,fs:null,user:null,ref:null,unsub:null,timer:null,pushing:false,conflict:null,msg:'',mine:{},loading:false};
+function syKey(){return 'sumud-synced-at:'+(SY.user?SY.user.uid:'')}
+function hasRealData(){
+  return S.expenses.concat(S.income,S.recurring,S.tasks,S.classes,S.exams,S.goals,S.study,S.trades).some(function(x){return !x.demo});
+}
+function syRender(){
+  var inb=$('#sy-in'), out=$('#sy-out'), t='';
+  if(!SY.m){
+    inb.hidden=false; inb.disabled=true; out.hidden=true;
+    t=SY.loading?'กำลังเตรียมระบบซิงก์…':(navigator.onLine===false?'ออฟไลน์อยู่ ต่อเน็ตแล้วจึงจะเข้าสู่ระบบเพื่อซิงก์ได้ ข้อมูลยังบันทึกในเครื่องนี้ตามปกติ':'เปิดระบบซิงก์ไม่ได้ในตอนนี้ ข้อมูลยังบันทึกในเครื่องนี้ตามปกติ');
+  }else if(!SY.user){
+    inb.hidden=false; inb.disabled=false; out.hidden=true;
+    t='ยังไม่ได้ซิงก์ ข้อมูลอยู่ในเครื่องนี้เท่านั้น เข้าสู่ระบบด้วย Google เพื่อเก็บสำเนาบนคลาวด์ และใช้ข้อมูลชุดเดียวกันได้ทุกเครื่อง';
+  }else{
+    inb.hidden=true; out.hidden=false;
+    t='เข้าสู่ระบบเป็น '+(SY.user.email||'บัญชี Google')+(SY.msg?' · '+SY.msg:'');
+  }
+  $('#sy-text').textContent=t;
+}
+function syStatus(msg){SY.msg=msg; syRender(); if(msg)setStatus(msg)}
+function syLoad(){
+  if(SY.m||SY.loading)return;
+  SY.loading=true; syRender();
+  var loader=window.__sumudFirebase||function(){
+    return Promise.all([import(FB_BASE+'firebase-app.js'),import(FB_BASE+'firebase-auth.js'),import(FB_BASE+'firebase-firestore.js')])
+      .then(function(a){return Object.assign({},a[0],a[1],a[2])});
+  };
+  Promise.resolve().then(loader).then(function(m){
+    var app=m.initializeApp(FB_CFG);
+    SY.auth=m.getAuth(app); SY.fs=m.getFirestore(app); SY.m=m; SY.loading=false;
+    try{if(m.getRedirectResult)m.getRedirectResult(SY.auth).catch(function(){})}catch(e){}
+    m.onAuthStateChanged(SY.auth,syUser);
+    syRender();
+  }).catch(function(){SY.m=null;SY.loading=false;syRender()});
+}
+function syUser(u){
+  SY.user=u||null; SY.conflict=null; $('#sy-conf').hidden=true; SY.msg='';
+  if(SY.unsub){try{SY.unsub()}catch(e){} SY.unsub=null}
+  if(!u){syRender();setStatus('บันทึกในเบราว์เซอร์นี้');return}
+  SY.ref=SY.m.doc(SY.fs,'users',u.uid);
+  syStatus('กำลังเชื่อมต่อ…');
+  SY.unsub=SY.m.onSnapshot(SY.ref,syHandle,function(e){
+    syStatus(e&&e.code==='permission-denied'?'ไม่มีสิทธิ์เข้าถึงข้อมูล (ตรวจกฎ Firestore)':'ซิงก์ไม่สำเร็จ จะลองใหม่เมื่อมีเน็ต');
+  });
+}
+function syHandle(snap){
+  if(snap.metadata&&snap.metadata.hasPendingWrites)return;
+  var localAt=lsNum(SY_AT)||(hasRealData()?1:0), syncedAt=lsNum(syKey());
+  if(!snap.exists()){
+    if(hasRealData())syPush(); else syStatus('ซิงก์แล้ว (ยังไม่มีข้อมูล)');
+    return;
+  }
+  var c=snap.data()||{};
+  if(SY.mine[c.at]){if(c.at>syncedAt)lsPut(syKey(),c.at);if(!SY.pushing&&lsNum(SY_AT)<=c.at)syStatus('ซิงก์แล้ว');return}
+  if(c.at===syncedAt){if(localAt>syncedAt)syQueue();else syStatus('ซิงก์แล้ว');return}
+  var localDirty=localAt>syncedAt&&hasRealData();
+  if(!localDirty){syAdopt(c);return}
+  SY.conflict=c;
+  var when=c.at>1?new Date(c.at).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'ก่อนหน้านี้';
+  $('#sy-conf-text').textContent='ข้อมูลบนคลาวด์ (อัปเดต '+when+') ต่างจากข้อมูลในเครื่องนี้ เลือกว่าจะใช้อย่างไร (แนะนำให้กดส่งออกไฟล์สำรองก่อน) การ "รวม" อาจทำให้รายการที่เคยลบกลับมา';
+  $('#sy-conf').hidden=false;
+  syStatus('รอเลือกข้อมูลที่จะใช้');
+}
+function syAdopt(c){
+  var next; try{next=norm(JSON.parse(c.json))}catch(e){syStatus('อ่านข้อมูลจากคลาวด์ไม่ได้');return}
+  S=next; lsPut(SY_AT,c.at); lsPut(syKey(),c.at);
+  var ch=applyRecurring(); writeLocal(); renderAll();
+  if(ch)save(); else syStatus('ซิงก์แล้ว');
+}
+function syPush(){
+  if(!SY.user||SY.conflict)return Promise.resolve();
+  if(SY.pushing){syQueue();return Promise.resolve()}
+  var j=JSON.stringify(S);
+  if(j.length>880000){syStatus('ข้อมูลใหญ่เกินกว่าจะซิงก์ได้ ใช้ไฟล์สำรองแทน');return Promise.resolve()}
+  var at=lsNum(SY_AT)||Date.now(); lsPut(SY_AT,at);
+  SY.mine[at]=1; SY.pushing=true; syStatus('กำลังซิงก์…');
+  return Promise.resolve().then(function(){return SY.m.setDoc(SY.ref,{json:j,at:at,v:1})}).then(function(){
+    SY.pushing=false; if(at>lsNum(syKey()))lsPut(syKey(),at);
+    if(lsNum(SY_AT)>at)syQueue(); else syStatus('ซิงก์แล้ว');
+  }).catch(function(e){
+    SY.pushing=false;
+    syStatus(e&&e.code==='permission-denied'?'ไม่มีสิทธิ์เขียนข้อมูล (ตรวจกฎ Firestore)':'ซิงก์ไม่สำเร็จ จะลองใหม่เมื่อมีเน็ต');
+  });
+}
+function syQueue(){
+  if(!SY.user||SY.conflict)return;
+  clearTimeout(SY.timer); SY.timer=setTimeout(function(){syPush()},1500);
+}
+function syMerge(a,b,aNewer){
+  var out=Object.assign({},aNewer?b:a,aNewer?a:b);
+  ['expenses','income','recurring','tasks','classes','exams','goals','study','trades'].forEach(function(k){
+    var seen={}, res=[], mine={};
+    (a[k]||[]).forEach(function(x){if(x&&x.id!=null)mine[x.id]=x});
+    (b[k]||[]).concat(a[k]||[]).forEach(function(x){
+      if(!x)return;
+      if(x.id==null){res.push(x);return}
+      if(seen[x.id])return; seen[x.id]=1;
+      if(k==='recurring'&&x.done&&mine[x.id]&&mine[x.id].done)x=Object.assign({},x,{done:Object.assign({},x.done,mine[x.id].done)});
+      res.push(x);
+    });
+    out[k]=res;
+  });
+  return out;
+}
+function syResolve(how){
+  var c=SY.conflict; if(!c)return;
+  SY.conflict=null; $('#sy-conf').hidden=true;
+  if(how==='cloud'){syAdopt(c);return}
+  var at=Math.max(Date.now(),(c.at||0)+1);
+  if(how==='merge'){
+    var cl; try{cl=JSON.parse(c.json)}catch(e){cl=null}
+    if(cl){S=norm(syMerge(JSON.parse(JSON.stringify(S)),cl,lsNum(SY_AT)>(c.at||0)));applyRecurring()}
+  }
+  lsPut(SY_AT,at); writeLocal(); renderAll(); syPush();
+}
+$('#sy-in').addEventListener('click',function(){
+  if(!SY.m)return;
+  var m=SY.m, prov=new m.GoogleAuthProvider();
+  m.signInWithPopup(SY.auth,prov).catch(function(e){
+    var code=(e&&e.code)||'';
+    if(code==='auth/popup-blocked'||code==='auth/operation-not-supported-in-this-environment'||code==='auth/web-storage-unsupported'){m.signInWithRedirect(SY.auth,prov);return}
+    if(code==='auth/popup-closed-by-user'||code==='auth/cancelled-popup-request')return;
+    syStatus('เข้าสู่ระบบไม่สำเร็จ ('+code.replace('auth/','')+')');
+  });
+});
+$('#sy-out').addEventListener('click',function(){if(SY.m&&SY.auth)SY.m.signOut(SY.auth)});
+
 /* ---------- boot ---------- */
 $('#today').textContent=new Date().toLocaleDateString('th-TH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 setTab(location.hash.slice(1));
@@ -1347,12 +1595,14 @@ document.addEventListener('click',function once(){askPersist();document.removeEv
 /* localStorage was emptied but the IndexedDB copy is still there: bring the data back. */
 if(fresh){
   idbGet('state').then(function(rec){
-    if(!rec||!rec.json||docs||dirty)return;
+    if(!rec||!rec.json||docs||dirty||lsNum(SY_AT)>0)return;
     var restored=norm(JSON.parse(rec.json));
-    S=restored; try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+    S=restored; if(rec.lat)lsPut(SY_AT,rec.lat); try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
     applyRecurring(); renderAll(); setStatus('กู้ข้อมูลจากสำเนาสำรองในเครื่องแล้ว');
   }).catch(function(){});
 }
+if(window.claude&&window.claude.use){$('#sync-card').hidden=true}
+else{syRender();syLoad();window.addEventListener('online',function(){if(!SY.m)syLoad();else syQueue()})}
 setInterval(renderAlerts,60000);
 document.addEventListener('visibilitychange',function(){
   if(document.hidden){saveTimer();flush()}
